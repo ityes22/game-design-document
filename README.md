@@ -140,7 +140,7 @@ Or install via the pinned requirements file:
 pip install -r requirements.txt
 ```
 
-**Requires Python 3.9 or later.**
+**Requires Python 3.10 or later.**
 
 **Script usage:**
 ```bash

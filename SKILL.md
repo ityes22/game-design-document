@@ -7,7 +7,7 @@ description: >
   technical requirements, and competitive analysis. Also generates companion pitch decks
   (.pptx) and one-page pitches. Use when users want to create a GDD, game pitch, game
   concept document, or game design specification.
-dependencies: python>=3.9, python-docx==1.1.2, fpdf2==2.8.3, python-pptx==1.0.2
+dependencies: python>=3.10, python-docx==1.1.2, fpdf2==2.8.3, python-pptx==1.0.2
 ---
 
 # Game Design Document Generator
