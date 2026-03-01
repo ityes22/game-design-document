@@ -48,6 +48,12 @@ except ImportError:
     PPTX_BUILDER_AVAILABLE = False
 
 try:
+    from utils.section_registry import validate_data_sensibility
+    REGISTRY_AVAILABLE = True
+except ImportError:
+    REGISTRY_AVAILABLE = False
+
+try:
     from pptx import Presentation
     from pptx.util import Inches, Pt
     from pptx.dml.color import RGBColor
@@ -308,7 +314,8 @@ def _get_default_pitch_content(game_data: Dict) -> Dict:
 def generate_pitch_deck(
     game_data: Dict,
     output_path: str,
-    theme: Optional["PitchTheme"] = None
+    theme: Optional["PitchTheme"] = None,
+    strict: bool = False
 ) -> str:
     """
     Generate a complete pitch deck .pptx file.
@@ -317,6 +324,7 @@ def generate_pitch_deck(
         game_data: Dictionary with game metadata and optional slide content.
         output_path: Output .pptx file path.
         theme: Optional PitchTheme. Defaults to DEFAULT_THEME.
+        strict: If True, fail export if unsourced metrics or placeholders remain.
 
     Returns:
         Absolute path to the generated file.
@@ -328,6 +336,42 @@ def generate_pitch_deck(
         )
     if not PPTX_BUILDER_AVAILABLE:
         raise ImportError("pptx_builder utils not found. Check scripts/utils/pptx_builder.py")
+
+    # Pre-export validation: check sections if provided
+    if REGISTRY_AVAILABLE:
+        sections_to_validate = game_data.get("sections", {})
+        if sections_to_validate:
+            sensibility_warnings = validate_data_sensibility(
+                sections_to_validate, strict=strict
+            )
+            for warning in sensibility_warnings:
+                print(f"  WARNING: {warning}")
+            if strict and sensibility_warnings:
+                raise SystemExit(
+                    "STRICT MODE: Export aborted due to unsourced metrics or "
+                    "placeholders in business sections. Fix the warnings above "
+                    "or remove --strict to export with warnings."
+                )
+
+    # Check pitch slide content for SOURCE NEEDED placeholders
+    import re
+    source_needed_re = re.compile(r"\bSOURCE NEEDED\b", re.IGNORECASE)
+    pitch_slides = game_data.get("pitch_slides", {})
+    pitch_warnings = []
+    for slide_key, slide_data in pitch_slides.items():
+        slide_text = json.dumps(slide_data)
+        if source_needed_re.search(slide_text):
+            pitch_warnings.append(
+                f"PLACEHOLDER in '{slide_key}': Contains 'SOURCE NEEDED' markers. "
+                f"Replace with real data before external use."
+            )
+    for warning in pitch_warnings:
+        print(f"  WARNING: {warning}")
+    if strict and pitch_warnings:
+        raise SystemExit(
+            "STRICT MODE: Export aborted due to SOURCE NEEDED placeholders "
+            "in pitch slides. Fix the warnings above or remove --strict."
+        )
 
     if theme is None:
         theme = DEFAULT_THEME
@@ -509,6 +553,8 @@ Examples:
     parser.add_argument("--tagline", default="", help="Tagline")
     parser.add_argument("--config", help="JSON config file with pitch content")
     parser.add_argument("--output", default="pitch_deck.pptx", help="Output .pptx path")
+    parser.add_argument("--strict", action="store_true",
+                        help="Fail export if SOURCE NEEDED placeholders or unsourced metrics remain")
 
     args = parser.parse_args()
 
@@ -538,7 +584,7 @@ Examples:
         sys.exit(1)
 
     try:
-        generate_pitch_deck(game_data=game_data, output_path=args.output)
+        generate_pitch_deck(game_data=game_data, output_path=args.output, strict=args.strict)
     except Exception as e:
         print(f"ERROR: {e}")
         import traceback
