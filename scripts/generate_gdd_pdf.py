@@ -181,7 +181,8 @@ def _parse_and_render_content(pdf: "GDDDocument", content: str) -> None:
 def generate_gdd_pdf_from_content(
     game_data: Dict,
     output_path: str,
-    include_toc: bool = True
+    include_toc: bool = True,
+    strict: bool = False
 ) -> str:
     """
     Generate a GDD PDF directly from content using fpdf2.
@@ -207,8 +208,17 @@ def generate_gdd_pdf_from_content(
     if REGISTRY_AVAILABLE and sections_to_validate:
         for warning in validate_gdd_content(sections_to_validate):
             print(f"  WARNING: {warning}")
-        for warning in validate_data_sensibility(sections_to_validate):
+        sensibility_warnings = validate_data_sensibility(
+            sections_to_validate, strict=strict
+        )
+        for warning in sensibility_warnings:
             print(f"  WARNING: {warning}")
+        if strict and sensibility_warnings:
+            raise SystemExit(
+                "STRICT MODE: Export aborted due to unsourced metrics or "
+                "placeholders in business sections. Fix the warnings above "
+                "or remove --strict to export with warnings."
+            )
         size_info = estimate_content_size(sections_to_validate)
         for warning in size_info["warnings"]:
             print(f"  WARNING: {warning}")
@@ -370,6 +380,8 @@ Examples:
     parser.add_argument("--docx", help="Existing .docx file to convert to PDF")
     parser.add_argument("--output", default="GDD_output.pdf", help="Output PDF path")
     parser.add_argument("--no-toc", action="store_true", help="Skip TOC page")
+    parser.add_argument("--strict", action="store_true",
+                        help="Fail export if unsourced metrics or placeholders remain in business sections")
     parser.add_argument(
         "--trust-docx", action="store_true",
         help="Confirm that the .docx file is from a trusted source (required for --docx conversion)"
@@ -418,7 +430,8 @@ Examples:
         generate_gdd_pdf_from_content(
             game_data=game_data,
             output_path=args.output,
-            include_toc=not args.no_toc
+            include_toc=not args.no_toc,
+            strict=args.strict
         )
     except Exception as e:
         print(f"ERROR: {e}")

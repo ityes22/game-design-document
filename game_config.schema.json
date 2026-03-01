@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "GDD Config",
+  "description": "Schema for Game Design Document JSON configuration files used by the generator scripts.",
+  "type": "object",
+  "required": ["game_title", "genre", "platform", "audience", "sections"],
+  "properties": {
+    "game_title": { "type": "string", "minLength": 1 },
+    "tagline": { "type": "string" },
+    "genre": { "type": "string" },
+    "platform": { "type": "string" },
+    "audience": { "type": "string" },
+    "studio_name": { "type": "string" },
+    "version": { "type": "string" },
+    "date": { "type": "string" },
+    "lead_designer": { "type": "string" },
+    "monetization": { "type": "string" },
+    "team_size": { "type": "string" },
+    "comparable_1": { "type": "string" },
+    "comparable_2": { "type": "string" },
+    "unique_hook": { "type": "string" },
+    "sections": {
+      "type": "object",
+      "description": "Section keys must match the canonical registry keys in section_registry.py.",
+      "additionalProperties": {
+        "oneOf": [
+          { "type": "string" },
+          {
+            "type": "object",
+            "required": ["content"],
+            "properties": {
+              "content": { "type": "string" },
+              "subsections": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": ["title", "content"],
+                  "properties": {
+                    "title": { "type": "string" },
+                    "content": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "pitch_slides": {
+      "type": "object",
+      "description": "Optional pitch deck slide content overrides."
+    }
+  }
+}

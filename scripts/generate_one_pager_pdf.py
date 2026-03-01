@@ -49,6 +49,12 @@ try:
 except ImportError:
     FPDF_AVAILABLE = False
 
+try:
+    from utils.section_registry import validate_data_sensibility
+    REGISTRY_AVAILABLE = True
+except ImportError:
+    REGISTRY_AVAILABLE = False
+
 
 # ─────────────────────────────────────────────
 # COLORS & LAYOUT
@@ -367,13 +373,14 @@ def build_one_pager(op: "OnePager", content: Dict) -> None:
 # MAIN GENERATION FUNCTION
 # ─────────────────────────────────────────────
 
-def generate_one_pager(game_data: Dict, output_path: str) -> str:
+def generate_one_pager(game_data: Dict, output_path: str, strict: bool = False) -> str:
     """
     Generate a single-page PDF concept sheet.
 
     Args:
         game_data: Dictionary with game metadata and one-pager content.
         output_path: Output PDF path.
+        strict: If True, fail export if unsourced metrics or placeholders remain.
 
     Returns:
         Absolute path to generated file.
@@ -383,6 +390,21 @@ def generate_one_pager(game_data: Dict, output_path: str) -> str:
             "fpdf2 is required. Install with:\n"
             "  pip install fpdf2"
         )
+
+    # Pre-export validation
+    if REGISTRY_AVAILABLE:
+        sections_to_validate = game_data.get("sections", {})
+        if sections_to_validate:
+            sensibility_warnings = validate_data_sensibility(
+                sections_to_validate, strict=strict
+            )
+            for warning in sensibility_warnings:
+                print(f"  WARNING: {warning}")
+            if strict and sensibility_warnings:
+                raise SystemExit(
+                    "STRICT MODE: Export aborted due to unsourced metrics or "
+                    "placeholders. Fix the warnings above or remove --strict."
+                )
 
     op = OnePager()
     build_one_pager(op, game_data)
@@ -417,6 +439,8 @@ Examples:
     parser.add_argument("--tagline", default="", help="Tagline")
     parser.add_argument("--config", help="JSON config file with one-pager content")
     parser.add_argument("--output", default="one_pager.pdf", help="Output PDF path")
+    parser.add_argument("--strict", action="store_true",
+                        help="Fail export if unsourced metrics or placeholders remain")
 
     args = parser.parse_args()
 
@@ -449,7 +473,7 @@ Examples:
         sys.exit(1)
 
     try:
-        generate_one_pager(game_data=game_data, output_path=args.output)
+        generate_one_pager(game_data=game_data, output_path=args.output, strict=args.strict)
     except Exception as e:
         print(f"ERROR: {e}")
         import traceback
