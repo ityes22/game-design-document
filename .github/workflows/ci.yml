@@ -34,7 +34,7 @@ jobs:
       - name: Dependency vulnerability scan (pip-audit)
         run: pip-audit -r requirements.txt
 
-      - name: Security lint (Bandit) — gating on High severity
+      - name: Security lint (Bandit) — gating on Medium+ severity
         run: bandit -r scripts/ -x .venv -f json -o bandit-report.json -ll
         # -ll = fail on Medium and above; use -lll for High-only
 
