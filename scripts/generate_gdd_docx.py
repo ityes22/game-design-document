@@ -447,7 +447,8 @@ def generate_gdd_docx(
     game_data: Dict,
     output_path: str,
     include_toc: bool = True,
-    include_template_sections: bool = True
+    include_template_sections: bool = True,
+    strict: bool = False
 ) -> str:
     """
     Generate a complete GDD .docx file.
@@ -475,8 +476,17 @@ def generate_gdd_docx(
     if UTILS_AVAILABLE and sections_to_validate:
         for warning in validate_gdd_content(sections_to_validate):
             print(f"  WARNING: {warning}")
-        for warning in validate_data_sensibility(sections_to_validate):
+        sensibility_warnings = validate_data_sensibility(
+            sections_to_validate, strict=strict
+        )
+        for warning in sensibility_warnings:
             print(f"  WARNING: {warning}")
+        if strict and sensibility_warnings:
+            raise SystemExit(
+                "STRICT MODE: Export aborted due to unsourced metrics or "
+                "placeholders in business sections. Fix the warnings above "
+                "or remove --strict to export with warnings."
+            )
         size_info = estimate_content_size(sections_to_validate)
         for warning in size_info["warnings"]:
             print(f"  WARNING: {warning}")
@@ -603,6 +613,8 @@ Examples:
     parser.add_argument("--config", help="Path to JSON config file with GDD content")
     parser.add_argument("--output", default="GDD_output.docx", help="Output file path")
     parser.add_argument("--no-toc", action="store_true", help="Skip table of contents")
+    parser.add_argument("--strict", action="store_true",
+                        help="Fail export if unsourced metrics or placeholders remain in business sections")
     parser.add_argument("--list-sections", action="store_true",
                         help="Print GDD section outline and exit")
 
@@ -654,7 +666,8 @@ Examples:
             game_data=game_data,
             output_path=args.output,
             include_toc=not args.no_toc,
-            include_template_sections=True
+            include_template_sections=True,
+            strict=args.strict
         )
         print(f"\n✓ Success! Open in Word and right-click the TOC to update page numbers.")
         print(f"  File: {output_path}")

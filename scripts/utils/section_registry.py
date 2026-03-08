@@ -526,16 +526,19 @@ def validate_gdd_content(content: dict) -> List[str]:
     return warnings
 
 
-def validate_data_sensibility(content: dict) -> List[str]:
+def validate_data_sensibility(content: dict, *, strict: bool = False) -> List[str]:
     """
     Check business-facing sections for numeric claims that lack source or
-    assumption markers. Returns warnings for unsourced metrics.
+    assumption markers, and for placeholder patterns that indicate incomplete
+    content. Returns warnings for unsourced metrics and placeholders.
 
     Args:
         content: Dict mapping section keys to content strings.
+        strict: If True, treat warnings as errors (callers should check and
+                exit non-zero when strict mode is enabled).
 
     Returns:
-        List of warning strings about unsourced claims.
+        List of warning strings about unsourced claims and placeholders.
     """
     import re
 
@@ -556,6 +559,16 @@ def validate_data_sensibility(content: dict) -> List[str]:
         re.compile(r"\bmarket\s+size\b", re.IGNORECASE),
     ]
 
+    # Patterns that indicate placeholders (not real sources/values)
+    placeholder_patterns = [
+        re.compile(r"\bSOURCE NEEDED\b", re.IGNORECASE),
+        re.compile(r"\$X(\.X)?[BMKbmk]\b"),           # $X.XB, $XB, etc.
+        re.compile(r"\bXX[MK]\b"),                     # XXM, XXK
+        re.compile(r"\bQ\[X\]\s+20\d{2}\b"),           # Q[X] 202X-like
+        re.compile(r"\[X\]"),                           # bracket placeholder
+        re.compile(r"\bTBD\b", re.IGNORECASE),
+    ]
+
     source_markers = ["[source:", "[assumption:", "[user-provided:"]
 
     for key in business_sections:
@@ -568,6 +581,7 @@ def validate_data_sensibility(content: dict) -> List[str]:
 
         text_lower = section_text.lower()
         has_any_numeric = False
+        has_placeholders = any(p.search(section_text) for p in placeholder_patterns)
 
         for pattern in numeric_patterns:
             matches = pattern.findall(section_text)
@@ -575,12 +589,18 @@ def validate_data_sensibility(content: dict) -> List[str]:
                 has_any_numeric = True
                 break
 
-        if has_any_numeric:
+        if has_any_numeric or has_placeholders:
             if not any(marker in text_lower for marker in source_markers):
                 section_name = SECTIONS[key]["name"] if key in SECTIONS else key
+                prefix = "STRICT ERROR" if strict else "UNSOURCED METRICS"
+                detail = []
+                if has_any_numeric:
+                    detail.append("numeric business claims")
+                if has_placeholders:
+                    detail.append("placeholder values")
                 warnings.append(
-                    f"UNSOURCED METRICS in '{section_name}': "
-                    f"Contains numeric business claims without [Source: ...] or "
+                    f"{prefix} in '{section_name}': "
+                    f"Contains {' and '.join(detail)} without [Source: ...] or "
                     f"[Assumption: ...] markers. Add attribution before external use."
                 )
 
