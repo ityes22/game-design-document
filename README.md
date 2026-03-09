@@ -1,4 +1,4 @@
-# game-design-document
+# game-design-document ()
 
 **A community-created skill for Claude that generates professional, publisher-grade Game Design Documents.**
 
